@@ -222,3 +222,207 @@ ggsave("cv_advert.jpg", plot = ggover,
        units = c("in", "cm", "mm"), dpi = 300, limitsize = TRUE)
 
 ```
+
+MIXED RESULTS
+```r
+g0 = function (W1, W2) {
+  plogis(.4*(-0.4 * W1*W2 + 0.63 * W2^2 -.66*cos(W1) - 0.25))
+}
+
+Q0 = function (A, W1, W2) {
+  plogis(0.2 * W1*W2 + 0.1 * W2^2 - .8*A*(cos(W1) + .5*A*W1*W2^2) - 0.35)
+}
+
+Q0 = function (A, W1, W2) {
+  plogis(0.1 * W1*W2 + 1.5*A*cos(W1) + 0.15*W1 - .4*W2*(abs(W2) > 1) -1*W2*(abs(W2 <=1)))
+}
+
+gendata.fcn = function (n, g0, Q0) 
+{
+  W1 = runif(n, -3, 3)
+  W2 = rnorm(n)
+  A = rbinom(n, 1, g0(W1, W2))
+  Y = rbinom(n, 1, Q0(A, W1, W2))
+  data.frame(A, W1, W2, Y)
+}
+
+pop = gendata.fcn(1e6, g0, Q0)
+pscores = with(pop, g0(W1, W2))
+hist(pscores, 200)
+
+blips = with(pop, Q0(1, W1, W2) - Q0(0, W1, W2))
+hist(blips, 200)
+var0 = var(blips)
+ATE0 = mean(blips)
+
+load("case_d24shit.RData")
+results = data.matrix(data.frame(do.call(rbind, ALL)))
+
+load("case_d23shit.RData")
+results1 = data.matrix(data.frame(do.call(rbind, ALL)))
+
+load("case_d22shit.RData")
+results2 = data.matrix(data.frame(do.call(rbind, ALL)))
+
+load("case_d21shit.RData")
+results3 = data.matrix(data.frame(do.call(rbind, ALL)))
+
+load("case_d2shit.RData")
+results4 = data.matrix(data.frame(do.call(rbind, ALL)))
+
+
+results = rbind(results, results1, results2, results3, results4)
+nrow(results)
+
+colnames(results)
+varinds = c(1, 45, 54)
+ateinds = varinds+3
+varAll = c(varinds, 7, 57)
+ateAll = c(ateinds, 8, 58)
+
+cov.check(results, ATE0, ateinds)
+cov.check(results, var0, varinds)
+
+mean(results[,6] - results[,5])
+mean(results[,50] - results[,49])
+
+B=nrow(results)
+param = var0
+inds = c(varinds, 7)
+type= c(rep("TMLE SL 1step",B), rep("TMLE LR 1step",B), rep("Delta LR 1step",B), 
+        rep("SL initial",B))
+types = c("TMLE SL 1step", "TMLE LR 1step", "Delta LR 1step", "SL initial")
+ests = unlist(lapply(inds, FUN = function(x) results[,x]))
+
+inds = inds[order(types)]
+colors = c("red","blue", "yellow", "green")
+
+plotdf = data.frame(ests=ests, type=type)
+
+ggover = ggplot(plotdf,aes(x=ests, color = type, fill=type)) + 
+  geom_density(alpha=.5)+
+  scale_fill_manual(values=colors)+
+  scale_color_manual(values=colors)+
+  theme(axis.title.x = element_blank())+
+  ylim(0,100)+
+  ggtitle("blip variance sampling distributions")
+ggover = ggover+geom_vline(xintercept = param,color="black")+
+  geom_vline(xintercept=mean(results[,inds[1]]),color = colors[1])+
+  geom_vline(xintercept=mean(results[,inds[2]]),color = colors[2])+
+  geom_vline(xintercept=mean(results[,inds[3]]),color = colors[3])+
+  geom_vline(xintercept=mean(results[,inds[4]]),color = colors[4])
+
+capt = "Truth is at black vline."
+ggover=ggdraw(add_sub(ggover,capt, x= 0, y = 0.5, hjust = 0, vjust = 0.5,
+                      vpadding = grid::unit(1, "lines"), fontfamily = "", 
+                      fontface = "plain",colour = "black", size = 10, angle = 0, 
+                      lineheight = 0.9))
+ggover
+
+
+
+
+SLcoef = colMeans(results[,grep("coef", colnames(results))])
+SLrisk = colMeans(results[,grep("risk", colnames(results))])[1:(length(grep("risk", colnames(results)))-2)]
+SLres = cbind(SLcoef, SLrisk)
+stargazer(SLres, summary = FALSE)
+SLres
+
+results[1:20,grep("risk", colnames(results))]
+results[1:20,grep("coef", colnames(results))]
+nrow(results)
+```
+
+
+EXAMPLE
+```r
+case = "example"
+library(foreign)
+library(Simulations)
+
+source('wrappers_ex.R')
+wcgs = read.dta("wcgs.dta")
+
+# This will set the SL libraries.  We transform the design matrix
+# to include squares, main terms and interactions and screen from there
+source(source_file)
+
+SL.library = SL.libraryG = c("SL.nnet","SL.glm","SL.mean")
+
+SL.library = list(c("nnetMain","screen.Main"),c("nnetMain1","screen.Main"),
+                  c("earthFull", "screen6", "screen12","All"),
+                  c("SL.earth", "screen.Main"),
+                  c("gamFull", "screen6", "screen12","All"), 
+                  c("SL.gam", "screen.Main"),"SL.rpartPrune", c("rpartMain", "screen.Main"),
+                  c("SL.glm","screen6", "screen12","screen.Main","All"),"SL.mean") 
+
+SL.libraryG = list("nnetMainG","nnetMainG1","SL.earth","SL.rpartPrune",
+                   "SL.gam", "rpartMain", "SL.glm", "SL.mean")
+
+# This will take a couple of days as below. We limited the cores to 2 
+# due to RAM issues but youc an specify the number of cores in the function below
+stack = SL.stack(Y = Y, X = X, A = A, W = W, newdata = newdata, 
+                 method = "method.NNLS",
+                 SL.library = SL.library, 
+                 SL.libraryG = SL.libraryG, V=10, mc.cores = 2)
+
+# perform the targeting step.  See package examples for more info
+info = gentmle(stack$initdata, params = list(param_ATE,param_sigmaATE),
+               approach = "recursive", max_iter = 10000, simultaneous.inference = TRUE)
+info$tmleests
+info$initests
+results = rbind(info$initests, info$tmleests)
+
+# getting estimate for standard dev of blip using delta method
+psi_sd = info$tmleests[2]^(.5)
+IC_sd = .5*psi_sd^(-1)*info$Dstar[,2]
+
+# log scaling blip variance due to left bound of CI in neg range
+psi_log = log(info$tmleests[2])
+IC_log = 1/info$tmleests[2]*info$Dstar[,2]
+
+# correlation matrix the same whether using log scale, stand dev of blip
+# or blip variance since all of these ICs are constants times each other
+IC_ate = info$Dstar[,1]
+IC = data.frame(IC_sd = IC_sd, IC_ate = IC_ate)
+Sig = cor(IC)
+
+# getting simultaneous zscore
+library(mvtnorm)
+z = rmvnorm(1000000, c(0,0), Sig)
+n = length(IC[,2])
+zscore = quantile(apply(z,1,FUN = function(x) max(abs(x))),.95)
+zscore
+
+# This ci for blip variance automatically generated by the gentmle
+ci = ci_gentmle(info)
+
+# other cis
+ci_simul_sd = c(psi_sd, psi_sd-zscore*sd(IC_sd)*sqrt(n-1)/n, 
+                psi_sd+zscore*sd(IC_sd)*sqrt(n-1)/n)
+
+ci_simul_log = exp(c(psi_log,psi_log - zscore*sd(IC_log)*sqrt(n-1)/n,
+                   psi_log + zscore*sd(IC_log)*sqrt(n-1)/n))
+
+# compiling cis
+ci_ate_sd_log = rbind(ci[1,c(2,4,5)], ci_simul_sd, ci_simul_log, ci[2,c(2,4,5)])
+rownames(ci_ate_sd_log) = c("ate", "blip st. dev","blip var log-scaled","blip var")
+
+# steps to convergence
+info$steps
+info$converge
+
+QSL = data.frame(QLearner = names(stack$Qcoef), Coef = stack$Qcoef)
+rownames(QSL) = NULL
+GSL = data.frame(GLearner = names(stack$Gcoef), Coef = round(stack$Gcoef, 4))
+rownames(GSL) = NULL
+
+fills = nrow(GSL)-nrow(QSL)
+funk = data.frame(GLearner = rep("",12), Coef = rep("",12))
+GSL = rbind(GSL,funk)
+
+SL_res = cbind(QSL,GSL)
+SL_res
+# superlearner coefficients 
+stargazer(SL_res, summary = FALSE, digits = 4)
+```
