@@ -226,7 +226,7 @@ ggsave("cv_advert.jpg", plot = ggover,
        units = c("in", "cm", "mm"), dpi = 300, limitsize = TRUE)
 
 ```
-
+<a name="section3.6"></a> 
 ###3.6 Mixed Results
 In this section we arrive at the coverages mentioned in cases 2 and 3 (83% and 32% respectively). We estimate CATE variance using the one-step CV-TMLE.  
 
