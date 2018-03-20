@@ -6,13 +6,17 @@ in R:
 
 devtools::install_github("jlstiles/Simulations")
 
-The following knitr file has instructions for how to generate the results, including plots and charts, in the paper.  I will note to the reader in the code comments, how to proceed with parallelizing so the process does not take so much time as well as issues with memory one should consider when running ensemble methods as applied here.
+The following knitr file has instructions for how to generate the results, including plots and charts, in the paper. 
 
 [SET UP: run this first](#setup)
 
 [section 3.1 Simulations with Controlled Noise](#section3.1)
+
 [section 3.3 Well-specified TMLE Initial Estimates, Skewing](#section3.3)
+
 [section 3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome](#section3.5)
+
+[section 3.6 Mixed Results](#section3.6)
 <a name="setup"></a>
 ```R
 case = "setup"
@@ -24,10 +28,8 @@ source('wrappers_ex.R')
 ```
 <a name="section3.1"></a>  
 
-#Section 3.1 Simulations with Controlled Noise
-This might take up to one week to complete on a 24 core node. 
-You can check the progress via the counter, i, in the output file, which will finish when i = 80. When it finishes, noise_data.RData will be created in your home directory containing a list, L, and gg_coverage, which is the plot. You may want to modify the source file to do this in 4 stages on 4 different nodes or so. 
-See the source file comments for how to do this if you so desire.  
+###Section 3.1 Simulations with Controlled Noise
+To generate the data for figure 1, it might take 5 days on a 24 core node. You can check the progress via the counter, i, in the output file, which will finish when i = 80. When it finishes, noise_data.RData will be created in your home directory containing a list, L, and gg_coverage, which is the plot. You may want to modify the source file to do this in 4 stages on 4 different nodes or so. See the source file comments for how to do this if you so desire.  
 
 ```R
 case = "noise_neg"
@@ -37,8 +39,9 @@ B=1000
 source(source_file)
 ```
 
-#Section 3.3 Well-specified TMLE Initial Estimates, Skewing. 
-This simulation should not take morethan a few hours and can be done on a laptop.
+###Section 3.3 Well-specified TMLE Initial Estimates, Skewing. 
+This simulation should not take more than a few hours and can be done on a laptop. Figures 2,3 and 4 are created via below. 
+
 ```R
 case = "wells"
 # suggest to test time for B = 1 to gauge time for B=1000
@@ -67,7 +70,7 @@ ml1000=marrangeGrob(list(gg_wellplots[[9]],gg_wellplots[[11]],
 ```
 
 <a name="section3.5"></a>  
-#3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome.  
+###3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome.  
 The next chunck is to run 1000 simulations for regular TMLE under the SuperLearner library (SL1) that does not overfit and obtaining logistic regression with main terms and interactions plug-in estimates using the delta method for inference and regular TMLE using logistic regression with main terms and interactions.  
 We did these on 24 nodes, which took at least a day to complete.  Parallelization is automatic here and will detect the number of cores available on your node.  
 
@@ -90,7 +93,8 @@ source(source_file)
 save(results_SL2, file = "results_SL2.RData")
 
 ```
-The next chunck is to run 1000 simulations for CV-TMLE under the SuperLearner library (SL2) that does slightly overfit.  These take 10 times as long as the previous ones. The authors did these in series of 100 on 24 nodes--note the B=100 to that effect. We aggregated the 10 different files, each created as per below but be careful in your cluster scripts to not overwrite!
+The next chunck is to run 1000 simulations for CV-TMLE under the SuperLearner library (SL2) that does slightly overfit.  These take 10 times as long as the previous ones. The authors did these in series of 100 on 24 nodes--note the B=100 to that effect. We aggregated the 10 different files.
+
 ```R
 case = "caseCVSL2"
 # suggest to test time for B = 1 to gauge time for B=1000
@@ -103,7 +107,7 @@ You will want to aggregate each of these 10 data.frames for CVSL2 (or you can on
 
 Now to aggregate the data:  
 
-In the next chunk, we notice the regular TMLE (not CV-TMLE) using logistic regression with main terms and interactions, which is severely misspecified, recovers nominal coverage for Causal Risk Difference estimation because we specify the treatment mechanism correctly. The plug-in estimator using logistic regression is below nominal for causal risk difference but not so bad, around 86%, due to confounding not being properly accounted for--not bad, though.  However, they are both way way off when estimating CATE variance.  
+In the next chunk, we notice the regular TMLE (not CV-TMLE) using logistic regression with main terms and interactions, which is severely misspecified, recovers nominal coverage for Causal Risk Difference estimation because we specify the treatment mechanism correctly. The plug-in estimator using logistic regression is below nominal for causal risk difference but not so bad, around 86%, due to confounding not being properly accounted for.  However, they are both way off when estimating CATE variance.  
 
 ```r
 # get the truth
@@ -223,114 +227,39 @@ ggsave("cv_advert.jpg", plot = ggover,
 
 ```
 
-MIXED RESULTS
+###3.6 Mixed Results
+In this section we arrive at the coverages mentioned in cases 2 and 3 (83% and 32% respectively). We estimate CATE variance using the one-step CV-TMLE.  
+
+After running the chunck below, a data.frame called results_2 will be created along with var0, the true CATE variance and ATE0, the true causal risk difference. It takes about a day to run 100 of these simulations on a 24 core node so doing 5 or 10 runs gets enough to study the sampling distribution.  
+
 ```r
-g0 = function (W1, W2) {
-  plogis(.4*(-0.4 * W1*W2 + 0.63 * W2^2 -.66*cos(W1) - 0.25))
-}
+case == "case2"
+# suggest to test time for B = 1 to gauge time for B=1000
+B=100
+n=1000
+source(source_file)
 
-Q0 = function (A, W1, W2) {
-  plogis(0.2 * W1*W2 + 0.1 * W2^2 - .8*A*(cos(W1) + .5*A*W1*W2^2) - 0.35)
-}
-
-Q0 = function (A, W1, W2) {
-  plogis(0.1 * W1*W2 + 1.5*A*cos(W1) + 0.15*W1 - .4*W2*(abs(W2) > 1) -1*W2*(abs(W2 <=1)))
-}
-
-gendata.fcn = function (n, g0, Q0) 
-{
-  W1 = runif(n, -3, 3)
-  W2 = rnorm(n)
-  A = rbinom(n, 1, g0(W1, W2))
-  Y = rbinom(n, 1, Q0(A, W1, W2))
-  data.frame(A, W1, W2, Y)
-}
-
-pop = gendata.fcn(1e6, g0, Q0)
-pscores = with(pop, g0(W1, W2))
-hist(pscores, 200)
-
-blips = with(pop, Q0(1, W1, W2) - Q0(0, W1, W2))
-hist(blips, 200)
-var0 = var(blips)
-ATE0 = mean(blips)
-
-load("case_d24shit.RData")
-results = data.matrix(data.frame(do.call(rbind, ALL)))
-
-load("case_d23shit.RData")
-results1 = data.matrix(data.frame(do.call(rbind, ALL)))
-
-load("case_d22shit.RData")
-results2 = data.matrix(data.frame(do.call(rbind, ALL)))
-
-load("case_d21shit.RData")
-results3 = data.matrix(data.frame(do.call(rbind, ALL)))
-
-load("case_d2shit.RData")
-results4 = data.matrix(data.frame(do.call(rbind, ALL)))
-
-
-results = rbind(results, results1, results2, results3, results4)
-nrow(results)
-
-colnames(results)
+# possibly stacking all data.frames (each results_2) into one data frame called results_2
 varinds = c(1, 45, 54)
 ateinds = varinds+3
-varAll = c(varinds, 7, 57)
-ateAll = c(ateinds, 8, 58)
 
-cov.check(results, ATE0, ateinds)
-cov.check(results, var0, varinds)
+cov.check(results_2, ATE0, ateinds)
+cov.check(results_2, var0, varinds)
+```
 
-mean(results[,6] - results[,5])
-mean(results[,50] - results[,49])
+```r
+case == "case3"
+# suggest to test time for B = 1 to gauge time for B=1000
+B=100
+n=1000
+source(source_file)
 
-B=nrow(results)
-param = var0
-inds = c(varinds, 7)
-type= c(rep("TMLE SL 1step",B), rep("TMLE LR 1step",B), rep("Delta LR 1step",B), 
-        rep("SL initial",B))
-types = c("TMLE SL 1step", "TMLE LR 1step", "Delta LR 1step", "SL initial")
-ests = unlist(lapply(inds, FUN = function(x) results[,x]))
+# possibly stacking all data.frames (each results_3) into one data frame called results_3
+varinds = c(1, 45, 54)
+ateinds = varinds+3
 
-inds = inds[order(types)]
-colors = c("red","blue", "yellow", "green")
-
-plotdf = data.frame(ests=ests, type=type)
-
-ggover = ggplot(plotdf,aes(x=ests, color = type, fill=type)) + 
-  geom_density(alpha=.5)+
-  scale_fill_manual(values=colors)+
-  scale_color_manual(values=colors)+
-  theme(axis.title.x = element_blank())+
-  ylim(0,100)+
-  ggtitle("blip variance sampling distributions")
-ggover = ggover+geom_vline(xintercept = param,color="black")+
-  geom_vline(xintercept=mean(results[,inds[1]]),color = colors[1])+
-  geom_vline(xintercept=mean(results[,inds[2]]),color = colors[2])+
-  geom_vline(xintercept=mean(results[,inds[3]]),color = colors[3])+
-  geom_vline(xintercept=mean(results[,inds[4]]),color = colors[4])
-
-capt = "Truth is at black vline."
-ggover=ggdraw(add_sub(ggover,capt, x= 0, y = 0.5, hjust = 0, vjust = 0.5,
-                      vpadding = grid::unit(1, "lines"), fontfamily = "", 
-                      fontface = "plain",colour = "black", size = 10, angle = 0, 
-                      lineheight = 0.9))
-ggover
-
-
-
-
-SLcoef = colMeans(results[,grep("coef", colnames(results))])
-SLrisk = colMeans(results[,grep("risk", colnames(results))])[1:(length(grep("risk", colnames(results)))-2)]
-SLres = cbind(SLcoef, SLrisk)
-stargazer(SLres, summary = FALSE)
-SLres
-
-results[1:20,grep("risk", colnames(results))]
-results[1:20,grep("coef", colnames(results))]
-nrow(results)
+cov.check(results_2, ATE0, ateinds)
+cov.check(results_2, var0, varinds)
 ```
 
 

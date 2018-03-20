@@ -44,18 +44,17 @@ if (case == "setup") {
                        "SL.glm.interaction","xgb2","xgb6","SL.ranger")
 } else {
   
-  if (case == "case2bSL1") {
+  if (case == "caseSL1") {
     g0 = g0_linear
     Q0 = Q0_trig
-    
+    n=1000
     SL.library = SL.library1[c(8,11,12)]
     SL.libraryG = list("SL.glm")
     gform = formula("A ~ W1+W2+W3+W4")
     Qform = formula("Y ~ A*(W1+W2+W3+W4)")
-    cl = makeCluster(no.cores, type = "SOCK")
+    cl = makeCluster(detectCores(), type = "SOCK")
     registerDoSNOW(cl)
     clusterExport(cl,cl_export)
-    B=2
     ALL=foreach(i=1:B,.packages=c("gentmle2","mvtnorm","hal","Simulations","SuperLearner"),
                 .errorhandling = "remove")%dopar%
                 {sim_cv4(n, g0 = g0, Q0 = Q0, SL.library=SL.library, 
@@ -64,10 +63,10 @@ if (case == "setup") {
                          estimator = c("single 1step", "single iterative", "simul 1step",
                                        "simul line", "simul full"), dgp = NULL)
                 }
-    results_2bSL1 = data.matrix(data.frame(do.call(rbind, ALL)))
+    results_SL1 = data.matrix(data.frame(do.call(rbind, ALL)))
   }
   
-  if (case == "case2bCVSL2") {
+  if (case == "caseCVSL2") {
     g0 = g0_linear
     Q0 = Q0_trig
     
@@ -76,7 +75,7 @@ if (case == "setup") {
     gform = formula("A ~ W1+W2+W3+W4")
     Qform = formula("Y ~ A*(W1+W2+W3+W4)")
     
-    cl = makeCluster(no.cores, type = "SOCK")
+    cl = makeCluster(detectCores(), type = "SOCK")
     registerDoSNOW(cl)
     clusterExport(cl,cl_export)
     
@@ -89,10 +88,10 @@ if (case == "setup") {
                                        "simul line", "simul full"), 
                          dgp = NULL)
                 }
-    results_2bCVSL2 = data.matrix(data.frame(do.call(rbind, ALL)))
+    results_CVSL2 = data.matrix(data.frame(do.call(rbind, ALL)))
   }
   
-  if (case == "case2bSL2") { 
+  if (case == "caseSL2") { 
     
     g0 = g0_linear
     Q0 = Q0_trig
@@ -102,7 +101,7 @@ if (case == "setup") {
     gform = formula("A ~ W1+W2+W3+W4")
     Qform = formula("Y ~ A*(W1+W2+W3+W4)")
     
-    cl = makeCluster(no.cores, type = "SOCK")
+    cl = makeCluster(detectCores(), type = "SOCK")
     registerDoSNOW(cl)
     clusterExport(cl,cl_export)
     
@@ -115,32 +114,39 @@ if (case == "setup") {
                                       "simul line", "simul full"), 
                         dgp = NULL)
                 }
-    results_2bSL2 = data.matrix(data.frame(do.call(rbind, ALL)))
+    results_SL2 = data.matrix(data.frame(do.call(rbind, ALL)))
   }
   
   
   if (case == "noise") {
-    
+    #data generating fcns
     g0 = g0_linear
     Q0 = Q0_noise
+    # finding the truth
     testdata=gendata_noise(1000000, g0=g0, Q0 = Q0)
     blip_true = with(testdata,Q0(1,W1,W2,W3,W4)-Q0(0,W1,W2,W3,W4))
     propensity = with(testdata, g0(W1,W2,W3,W4))
     ATE0 = mean(blip_true)
     var0 = var(blip_true)
+    # creating bias functions to place on the truth
     rate = 1/3
     biasQ = function(A,W1,W2,W3,W4,n,rate)  {
       n^-rate*1.5*(-.2+1.5*A+.2*W1+1*W2-A*W3+ 1*W4)
     }
-    # hist(with(truth,biasQ(A,W1,W2,W3,W4,n=n,rate=rate)))
+    
     sdQ = function(A,W1,W2,W3,W4,n,rate) {
       (n^-rate)*.8*(abs(3.5+.5*W1+.15*W2+.33*W3*W4-W4))
     }
+    
     N=20000 
     cl = makeCluster(no.cores, type = "SOCK")
     registerDoSNOW(cl)
     L = list()
     i=1
+    # Here is where you can modify the sizes to go from 250 to 5000
+    # by setting N=5000, then in separate file go from 5250 to 10000
+    # divvying the task into four parts on four different nodes, then 
+    # appending the L lists together into one L list and running the rest
     sizes = seq(250,N,250)
     for (n in sizes){
       rate = 1/3
@@ -152,17 +158,43 @@ if (case == "setup") {
       L[[i]] = ALL
       print(proc.time()-time)
       i=i+1
-    }}
+    }
+    
+    # Here is where the info in L is compiled to form the plot
+    res_noise = vapply(1:length(L), FUN = function(x) {
+      res = getRes(L[[x]],B, ATE0=ATE0, var0=var0)
+      bias_init = res[[2]][2,2]
+      bias_tmle = res[[2]][1,2]
+      mse_init = res[[2]][2,3]
+      mse_tmle = res[[2]][1,3]
+      coverage = res[[3]][2]
+      return(c(bias_init, bias_tmle, mse_init, mse_tmle, coverage))
+    }, FUN.VALUE = c(1,1,1,1,1))
+    res_noise
+    
+    plotdf  = data.frame(n = sizes,coverage = res_noise[5,])
+    gg_coverage = ggplot(plotdf, aes(x = n, y = coverage)) + geom_point() + ylim(.86,.98)
+    geom_hline(yintercept = .95, color = "green")
+    caption = paste0("coverage slowly becomes nominal as expected")
+    gg_coverage=ggdraw(add_sub(gg_coverage,caption,x= 0, y = 0.5, hjust = 0, vjust = 0.5,
+                               vpadding = grid::unit(1, "lines"), fontfamily = "", fontface = "plain",
+                               colour = "black", size = 10, angle = 0, lineheight = 0.9))
+    gg_coverage
+    save(gg_coverage, L, file = "noise_data.RData")
+  }
   
   
   if (case == "wells") {
-    
+    # a and b control the amount of CATE variance
     a = seq(0,15,.5)
     b = seq(0,15,.5)
     truevars = c()
     trueates = c()
     gg_wells = list()
     oc_list = list()
+    
+    # we create 31 different levels of true CATE variance and corresponding data generating
+    # distributions
     for (i in 1:31){
       Q0 = function (A, W1, W2, W3, W4) 
       {
@@ -174,22 +206,22 @@ if (case == "setup") {
       trueates = c(trueates, mean(blip_true))
       oc_list = append(oc_list,Q0)
     }
-    
+    # nn is the sample size and we create a histogram for 1000 draws for the 1st,
+    # 3rd, 7th and 11th levels of CATE variance for each sample size
     for (nn in c(250,500,1000)){
       cl = makeCluster(detectCores(), type = "SOCK")
       registerDoSNOW(cl)
       clusterExport(cl,c("a","b","oc_list"))
-      for (i in seq(1,31,2)){
+      for (i in c(1,3,7,11)){
         print(i)
-        B = 1000
         n = nn
         Q0 = oc_list[[i]]
-        SL.library =
-          ALL = foreach(rep=1:B,.packages=c("gentmle2","mvtnorm","hal","Simulations"),
-                        .export = c("a","b","i"))%dopar%
-                        {sim_lr(n, g0 = g0_linear, Q0 = Q0, 
-                                formQ = formula("Y~A*(W1 + W2) +W3 +W4"),
-                                formG = formula("A~."))}
+        
+        ALL = foreach(rep=1:B,.packages=c("gentmle2","mvtnorm","hal","Simulations"),
+                      .export = c("a","b","i"))%dopar%
+                      {sim_lr(n, g0 = g0_linear, Q0 = Q0, 
+                              formQ = formula("Y~A*(W1 + W2) +W3 +W4"),
+                              formG = formula("A~."))}
         
         results = do.call(rbind,ALL)
         cnames = colnames(results)
@@ -241,12 +273,14 @@ if (case == "setup") {
         gg_hal=ggdraw(add_sub(gg_hal,caption,x= 0, y = 0.5, hjust = 0, vjust = 0.5,
                               vpadding = grid::unit(1, "lines"), fontfamily = "", fontface = "plain",
                               colour = "black", size = 10, angle = 0, lineheight = 0.9))
-        gg_hal
+        # gg_wells stores the plots
         gg_wells[[count]] = gg_hal
         count = count+1
         
       }
     }
+    # creating p-score plot for the treatment mech used in all plots here.  There
+    # are no positivity violations
     data = gendata(1e6, g0_linear, Q0_trig1)
     pscores = with(data, g0_linear(W1,W2,W3,W4))
     df = data.frame(pscores=pscores, type = rep("p", 1e6))
@@ -258,6 +292,7 @@ if (case == "setup") {
                                     x= 0, y = 0.5, hjust = 0, vjust = 0.5,
                                     vpadding = grid::unit(1, "lines"), fontfamily = "", fontface = "plain",
                                     colour = "black", size = 10, angle = 0, lineheight = 0.9))
+    save(gg_wells, gg_pscoresWell, "wells.RData") 
   }
   
   if (case == "example"){
@@ -315,13 +350,13 @@ if (case == "setup") {
                        "SL.hal", "SL.mean","xgboostG")
   }
   
-  if (case == "case2d" | case == "case2d_bad")
+  if (case == "case2" | case == "case3")
   {
     g0 = function (W1, W2) {
       plogis(.4*(-0.4 * W1*W2 + 0.63 * W2^2 -.66*cos(W1) - 0.25))
     }
     
-    if (case == "case2d_bad") {
+    if (case == "case3") {
       Q0 = function (A, W1, W2) {
         plogis(0.2 * W1*W2 + 0.1 * W2^2 - .8*A*(cos(W1) + .5*A*W1*W2^2) - 0.35)
       }
@@ -330,7 +365,7 @@ if (case == "setup") {
         plogis(0.1 * W1*W2 + 1.5*A*cos(W1) + 0.15*W1 - .4*W2*(abs(W2) > 1) -1*W2*(abs(W2 <=1)))
       }
     }
-    
+
     
     gendata.fcn = function (n, g0, Q0) 
     {
@@ -340,6 +375,15 @@ if (case == "setup") {
       Y = rbinom(n, 1, Q0(A, W1, W2))
       data.frame(A, W1, W2, Y)
     }
+    
+    # generating data and pscores
+    pop = gendata.fcn(1e6, g0, Q0)
+    pscores = with(pop, g0(W1, W2))
+    
+    # get the CATEs or blips
+    blips = with(pop, Q0(1, W1, W2) - Q0(0, W1, W2))
+    var0 = var(blips)
+    ATE0 = mean(blips)
     
     SL.libraryD2 = list("nnetMain","nnetMain1","glm.mainint", 
                         "earth_2d","SL.glm.interaction", "xgboost_2d","SL.mean","SL.hal")
@@ -352,8 +396,6 @@ if (case == "setup") {
     cl = makeCluster(detectCores(), type = "SOCK")
     registerDoSNOW(cl)
     clusterExport(cl,cl_export)
-    n = 1000
-    B = 100
     
     gform = formula("A~.")
     Qform = formula("Y~A*(W1+W2)")
@@ -363,7 +405,8 @@ if (case == "setup") {
                         SL.libraryG = SL.libraryD2G, method = "method.NNloglik", cv = TRUE, V = 10, SL = 10L, 
                         gform = gform, Qform = Qform, estimator = c("single 1step"), gendata.fcn = gendata.fcn)
                 }
-    if (case == "case2d") results_2d = data.matrix(data.frame(do.call(rbind, ALL))) else {
-      results_2dbad = data.matrix(data.frame(do.call(rbind, ALL)))
+    if (case == "case2") results_2 = data.matrix(data.frame(do.call(rbind, ALL))) else {
+      results_3 = data.matrix(data.frame(do.call(rbind, ALL)))
     }
   }
+}
