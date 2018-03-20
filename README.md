@@ -128,5 +128,97 @@ cov.check(res_LR, ATE0, ind = ind_LRate)
 # regression plug-in estimator, resp.
 LRmeans = colMeans(results_SL1[, ind_LRcateVar])
 ```
+Now let's aggregate the different SuperLearner TMLE's, that use data adaptive estimation in the initial estimates, which makes a huge difference.  
 
+```r
+res_list = list(results_case2bCVSL2, results_case2bSL2, results_case2bSL1)
 
+# getting coverage and simultaneous coverage for the above res_list, in that order.
+coverage = c(cov.check(res_list[[1]], var0, ind = c(1)),
+             cov.check(res_list[[2]], var0, ind = c(1)),
+             cov.check(res_list[[3]], var0, ind = c(1)))
+
+coverage.simul = unlist(lapply(res_list, FUN = function(x) cov.simul(x, truth=c(var0, ATE0), ind = c(13,16))))
+
+# getting MSE, bias, variance of the three TMLES: CVSL2, SL2 and SL1 as named in the paper. 
+performance.sig = lapply(res_list, FUN = function(x) {
+  t(apply(x[,c(1,7,31)], 2, perf, var0))
+})
+
+# Combine MSE, bias, variance measures for all 5 estimates, TMLE with Logistic Regression initial estimates, # Logistic regression plug-in, CVSL2, SL2 and SL1
+performance.LR =t(apply(res_SL1[,ind_LRcateVar], 2, perf, var0))
+performance = rbind(performance.LR, do.call(rbind, performance.sig))
+
+# performance for the TMLE's (not including initial estimates, which are worse)
+performance_tmle = performance[c(1:4,6:7,9:10),]
+
+# charts
+# combining all coverage info with performance measures
+cov_col = rep(NA, nrow(performance))
+cov_col[c(1:4, 6:7, 9:10)] = c(cov_LR,coverage[1], coverage.simul[1],
+                               coverage[2], coverage.simul[2],
+                               coverage[3], coverage.simul[3])
+cov_tmle = cov_col[c(1:4, 6:7, 9:10)]
+perf_summary = cbind(performance_tmle, coverage = cov_tmle)
+rownames(perf_summary) = c("TMLE LR", "LR plug-in", "CV-TMLE SL2", "TMLE CV-SL2*",
+                           "TMLE SL2", "TMLE SL2*","TMLE SL1", "TMLE SL1*")
+# Stargazer package makes a nice table                           
+stargazer(perf_summary, summary = FALSE, digits = 5)
+
+# Now we create the nice ggplot for figure 5 in the paper
+B = c()
+B[1] = nrow(results_case2bCVSL2)
+B[2] = nrow(results_case2bSL2)
+B[3] = nrow(results_case2bSL1)
+
+type= c(rep("CV-TMLE SL2", B[1]), rep("TMLE SL2", B[2]), rep("TMLE SL1", B[3]))
+types = c("CV-TMLE SL2", "TMLE SL2", "TMLE SL1")
+
+# we only use single TMLE--ie, not estimated simultaneously with causal risk difference.  The difference is # quite small
+ests = unlist(lapply(res_list, FUN = function(x) x[,1]))
+means = unlist(lapply(res_list, FUN = function(x) mean(x[,1])))
+
+means = means[order(types)]
+colors = c("red","blue", "green")
+
+plotdf = data.frame(ests=ests, type=type)
+
+ggover = ggplot(plotdf,aes(x=ests, color = type, fill=type)) + 
+  geom_density(alpha=.5)+
+  scale_fill_manual(values=colors)+
+  scale_color_manual(values=colors)+
+  labs(title = "CATE variance sampling distributions, case 1",
+       subtitle = "Parametric Model Disaster\nCV-TMLE prevents skewing")+
+  theme(axis.title.x = element_blank(), plot.title = element_text(size = rel(1.5)))
+ggover = ggover+geom_vline(xintercept = var0,color="black")+
+  geom_vline(xintercept=means[1],color = colors[1])+
+  geom_vline(xintercept=means[2],color = colors[2])+
+  geom_vline(xintercept=means[3],color = colors[3])+
+  geom_vline(xintercept=mean(res_LR[,1]),color = "orange")+
+  geom_vline(xintercept=mean(res_LR[,7]),color = "yellow")
+
+capt = paste0("Truth is at black vline.  Orange and yellow lines mark means of TMLE using \n",
+              "logistic regression with main terms and interactions for the initial outcome\n",
+              "predictions and the like regression plug-in estimator respectively.",
+              "\nBoth of these never cover the truth and are disastrously biased.",
+              "\nTMLE SL2, which used Superlearner Library 2 for initial ests\n", 
+              "is skewed, has many outliers and covers at ", 100*round(coverage[2],3),"% ",
+              "is both more biased and more variant.",
+              "\nTMLE SL1 uses a non-overfitting SuperLearner and covers near nominally at ", 
+              100*round(coverage[3],3), "%\n",
+              "CV-TMLE SL2 does not require the donsker condition lowest MSE, no skewing and",
+              "\ncovers at ", 100*round(coverage[1],3),"%. despite use of overfitting SL2.")
+
+ggover=ggdraw(add_sub(ggover,capt, x= 0, y = 0.5, hjust = 0, vjust = 0.5,
+                      vpadding = grid::unit(1, "lines"), fontfamily = "", 
+                      fontface = "plain",colour = "black", size = 14, angle = 0, 
+                      lineheight = 0.9))
+
+ggover
+
+# saving the plot if desired
+ggsave("cv_advert.jpg", plot = ggover, 
+       device = NULL, path = NULL, scale = 1, width = NA, height = NA, 
+       units = c("in", "cm", "mm"), dpi = 300, limitsize = TRUE)
+
+```
