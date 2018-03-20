@@ -10,9 +10,8 @@ The following knitr file has instructions for how to generate the results, inclu
 
 [SET UP: run this first](#setup)
 
-[section 4.1.2 manufactured noise simulations](#section4.1.2)
+[section 3.1 manufactured noise simulations](#section3.1)
 
-[section 4.1.3 manufactured noise simulations](#section4.1.3)
 
 [section 4.3 well specified precaution on skewing](#section4.3)
 
@@ -43,13 +42,10 @@ mispecified treatment and outcome models
 <a name="setup"></a>
 ```R
 case = "setup"
-resultsGotten = TRUE
-source_file = "~/Dropbox/Jonathan/Simulations/source_paper.R"
+source_file = "source_paper.R"
 source(source_file)
-
-devtools::install_github("jlstiles/Simulations")
 library(Simulations)
-source("~/Dropbox/Jonathan/Simulations/WrappersVblip1.R")
+source("WrappersVblip1.R")
 # source('/home/jlstiles/R/WrappersVblip1.R')
 ```
 
