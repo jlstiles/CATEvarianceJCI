@@ -28,7 +28,7 @@ source('wrappers_ex.R')
 ```
 <a name="section3.1"></a>  
 
-###Section 3.1 Simulations with Controlled Noise
+##Section 3.1 Simulations with Controlled Noise
 To generate the data for figure 1, it might take 5 days on a 24 core node. You can check the progress via the counter, i, in the output file, which will finish when i = 80. When it finishes, noise_data.RData will be created in your home directory containing a list, L, and gg_coverage, which is the plot. You may want to modify the source file to do this in 4 stages on 4 different nodes or so. See the source file comments for how to do this if you so desire.  
 
 ```R
@@ -39,7 +39,7 @@ B=1000
 source(source_file)
 ```
 
-###Section 3.3 Well-specified TMLE Initial Estimates, Skewing. 
+##Section 3.3 Well-specified TMLE Initial Estimates, Skewing. 
 This simulation should not take more than a few hours and can be done on a laptop. Figures 2,3 and 4 are created via below. 
 
 ```R
@@ -70,7 +70,7 @@ ml1000=marrangeGrob(list(gg_wellplots[[9]],gg_wellplots[[11]],
 ```
 
 <a name="section3.5"></a>  
-###3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome.  
+##3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome.  
 The next chunck is to run 1000 simulations for regular TMLE under the SuperLearner library (SL1) that does not overfit and obtaining logistic regression with main terms and interactions plug-in estimates using the delta method for inference and regular TMLE using logistic regression with main terms and interactions.  
 We did these on 24 nodes, which took at least a day to complete.  Parallelization is automatic here and will detect the number of cores available on your node.  
 
@@ -227,7 +227,7 @@ ggsave("cv_advert.jpg", plot = ggover,
 
 ```
 <a name="section3.6"></a> 
-###3.6 Mixed Results
+##3.6 Mixed Results
 In this section we arrive at the coverages mentioned in cases 2 and 3 (83% and 32% respectively). We estimate CATE variance using the one-step CV-TMLE.  
 
 After running the chunck below, a data.frame called results_2 will be created along with var0, the true CATE variance and ATE0, the true causal risk difference. It takes about a day to run 100 of these simulations on a 24 core node so doing 5 or 10 runs gets enough to study the sampling distribution.  
