@@ -1,8 +1,8 @@
-# Simulations
-Read the [Blip Variance Paper, full version](https://github.com/jlstiles/Simulations/blob/master/blip-variance-article.pdf) 
+# A Fundamental Measure of Treatment Effect Heterogeneity
 
-To install gentmle and the other tools necessary to obtain results in in the
-Blip Variance paper:
+To install gentmle and the other tools necessary to obtain results in the
+paper, "A Fundamental Measure of Treatment Effect Heterogeneity", run the following
+in R:
 
 devtools::install_github("jlstiles/Simulations")
 
