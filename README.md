@@ -126,7 +126,7 @@ cov_LR = cov.check(results_SL1, var0, ind = ind_LRcateVar)
 cov.check(res_LR, ATE0, ind = ind_LRate)
 # compute the mean estimates of CATE variance for tmle with logistic regression initial and logistic 
 # regression plug-in estimator, resp.
-LRcolMeans(results_SL1[, ind_LRcateVar])
+LRmeans = colMeans(results_SL1[, ind_LRcateVar])
 ```
 
 
