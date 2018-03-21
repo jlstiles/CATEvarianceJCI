@@ -201,8 +201,8 @@ ggover = ggover+geom_vline(xintercept = var0,color="black")+
   geom_vline(xintercept=means[1],color = colors[1])+
   geom_vline(xintercept=means[2],color = colors[2])+
   geom_vline(xintercept=means[3],color = colors[3])+
-  geom_vline(xintercept=mean(res_LR[,1]),color = "orange")+
-  geom_vline(xintercept=mean(res_LR[,7]),color = "yellow")
+  geom_vline(xintercept=LRmeans[1]),color = "orange")+
+  geom_vline(xintercept=LRmeans[2]),color = "yellow")
 
 capt = paste0("Truth is at black vline.  Orange and yellow lines mark means of TMLE using \n",
               "logistic regression with main terms and interactions for the initial outcome\n",
