@@ -5,6 +5,7 @@ paper, "A Fundamental Measure of Treatment Effect Heterogeneity", run the follow
 in R:
 
 devtools::install_github("jeremyrcoyle/gentmle2")
+
 devtools::install_github("jlstiles/Simulations")
 
 The following knitr file has instructions for how to generate the results, including plots and charts, in the paper. 
