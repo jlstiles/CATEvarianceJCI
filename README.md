@@ -18,6 +18,8 @@ The following knitr file has instructions for how to generate the results, inclu
 [section 3.5 Case 1: Well-Specified Treatment Mechanism, Misspecified Outcome](#section3.5)
 
 [section 3.6 Mixed Results](#section3.6)
+
+[section 4 Demonstration on Real Data](#section4)
 <a name="setup"></a>
 ```R
 case = "setup"
@@ -264,7 +266,8 @@ cov.check(results_2, var0, varinds)
 ```
 
 
-EXAMPLE
+<a name="section3.1"></a>  
+##section 4 Demonstration on Real Data
 ```r
 case = "example"
 library(foreign)
