@@ -213,7 +213,7 @@ capt = paste0("Truth is at black vline.  Orange and yellow lines mark means of T
               "is both more biased and more variant.",
               "\nTMLE SL1 uses a non-overfitting SuperLearner and covers near nominally at ", 
               100*round(coverage[3],3), "%\n",
-              "CV-TMLE SL2 does not require the donsker condition lowest MSE, no skewing and",
+              "CV-TMLE SL2 does not require the donsker condition, has lowest MSE, no skewing and",
               "\ncovers at ", 100*round(coverage[1],3),"%. despite use of overfitting SL2.")
 
 ggover=ggdraw(add_sub(ggover,capt, x= 0, y = 0.5, hjust = 0, vjust = 0.5,
