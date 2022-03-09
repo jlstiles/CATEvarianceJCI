@@ -26,7 +26,7 @@ The following knitr file has instructions for how to generate the results, inclu
 case = "setup"
 source_file = "source_paperJCI.R"
 source(source_file)
-library(Simulations)
+library(sim.papers)
 source("WrappersVblip1.R")
 source('wrappers_ex.R')
 ```
